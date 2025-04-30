@@ -39,14 +39,14 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: url('./flame/camp.jpg') no-repeat center center;
+            background: url('./desing/background.jpg') no-repeat center center;
             background-size: contain;
             border-radius: 12px;
         }
         .flame {
             width: 64px;
             height: 64px;
-            background: url('./flame/2.png') no-repeat;
+            background: url('./desing/2.png') no-repeat;
             background-size: cover;
             position: absolute;
             top: 87px;
@@ -153,6 +153,8 @@
             <div class="input-row">
                 <label for="usernameInput">Kick Username:</label>
                 <input type="text" id="usernameInput" placeholder="Username" autocomplete="off">
+                <label for="templateSelect">Template:</label>
+                <select id="templateSelect"></select>
                 <button id="startBtn">Start</button>
             </div>
             <div class="url-row" style="display:none;" id="urlRow">
@@ -165,12 +167,40 @@
         // Global değişkenler (çakışmayı önlemek için)
         let globalWs = null;
         let globalInterval = null;
+        let currentTemplate = 'knight';
 
-        // Yardımcı fonksiyon: URL parametresinden username al
-        function getUsernameFromUrl() {
+        // Template klasör isimleri burada tutuluyor
+        const templates = ['knight', 'monster']; // desing klasöründeki klasör isimleriyle aynı olmalı
+
+        // Yardımcı fonksiyon: URL parametresinden username ve template al
+        function getParamFromUrl(param) {
             const params = new URLSearchParams(window.location.search);
-            return params.get('username');
+            return params.get(param);
         }
+
+        // Template'e göre görsel yollarını ve konumları döndür
+        function getTemplateAssets(template) {
+            // Her template için konumlar burada tanımlanır
+            const positions = {
+                knight: { top: '87px', left: '137px' },
+                monster: { top: '150px', left: '120px' } // örnek, ihtiyaca göre değiştirin
+            };
+            return {
+                background: `./desing/${template}/background.jpg`,
+                flame: (level) => `./desing/${template}/${level}.png`,
+                position: positions[template] || { top: '87px', left: '137px' }
+            };
+        }
+
+        // Sayfa yüklenirken template seçeneklerini dinamik doldur
+        const templateSelect = document.getElementById('templateSelect');
+        templateSelect.innerHTML = '';
+        templates.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+            templateSelect.appendChild(opt);
+        });
 
         // Kick API'den chatroom_id al
         async function getChatroomId(username) {
@@ -187,7 +217,7 @@
         }
 
         // Alev animasyonu ve chat fonksiyonları
-        async function startFlame(username) {
+        async function startFlame(username, template) {
             // Önce eski bağlantı ve interval'ı temizle
             if (globalWs) {
                 try { globalWs.close(); } catch (e) {}
@@ -198,8 +228,13 @@
                 globalInterval = null;
             }
 
+            const assets = getTemplateAssets(template);
             const flame = document.getElementById('flame');
             const flameLevelLabel = document.getElementById('flameLevelLabel');
+            document.querySelector('.background').style.backgroundImage = `url('${assets.background}')`;
+            // Konumu ayarla
+            flame.style.top = assets.position.top;
+            flame.style.left = assets.position.left;
             flame.style.display = 'block';
             flameLevelLabel.textContent = 'Yükleniyor...';
 
@@ -225,7 +260,7 @@
             let count180 = 0;
 
             function updateFlameImage(level, msgPerSec60, msgPerSec180) {
-                flame.style.backgroundImage = `url('./flame/${level}.png')`;
+                flame.style.backgroundImage = `url('${assets.flame(level)}')`;
                 flameLevelLabel.textContent = `Alev Seviyesi: ${level} | 60sn: ${msgPerSec60.toFixed(2)}/sn | 180sn: ${msgPerSec180.toFixed(2)}/sn`;
             }
 
@@ -308,26 +343,54 @@
         const copyBtn = document.getElementById('copyBtn');
         const flame = document.getElementById('flame');
         const flameLevelLabel = document.getElementById('flameLevelLabel');
+        const backgroundDiv = document.querySelector('.background');
 
         // Sayfa ilk açıldığında animasyon ve label gizli olsun
         flame.style.display = 'none';
         flameLevelLabel.textContent = '';
 
-        // Sayfa yüklenirken username parametresi varsa otomatik başlat
-        const paramUsername = getUsernameFromUrl();
+        // URL parametresiyle uyumlu seçili template'i ayarla
+        const paramUsername = getParamFromUrl('username');
+        const paramTemplate = getParamFromUrl('template');
+        if (paramTemplate && templates.includes(paramTemplate)) {
+            templateSelect.value = paramTemplate;
+            currentTemplate = paramTemplate;
+        } else {
+            templateSelect.value = templates[0];
+            currentTemplate = templates[0];
+        }
+        backgroundDiv.style.backgroundImage = `url('${getTemplateAssets(currentTemplate).background}')`;
+        // Konumu güncelle
+        const pos = getTemplateAssets(currentTemplate).position;
+        flame.style.top = pos.top;
+        flame.style.left = pos.left;
         if (paramUsername) {
             usernameInput.value = paramUsername;
-            const url = `${window.location.origin}${window.location.pathname}?username=${encodeURIComponent(paramUsername)}`;
+            const url = `${window.location.origin}${window.location.pathname}?username=${encodeURIComponent(paramUsername)}&template=${encodeURIComponent(currentTemplate)}`;
             urlOutput.value = url;
             urlRow.style.display = 'flex';
-            startFlame(paramUsername);
+            startFlame(paramUsername, currentTemplate);
         }
+
+        // Template seçimi değişince arka planı ve alevi güncelle
+        templateSelect.addEventListener('change', function() {
+            currentTemplate = templateSelect.value;
+            backgroundDiv.style.backgroundImage = `url('${getTemplateAssets(currentTemplate).background}')`;
+            // Konumu güncelle
+            const pos = getTemplateAssets(currentTemplate).position;
+            flame.style.top = pos.top;
+            flame.style.left = pos.left;
+            // Alev animasyonu aktifse güncelle
+            if (flame.style.display === 'block' && usernameInput.value.trim()) {
+                startFlame(usernameInput.value.trim(), currentTemplate);
+            }
+        });
 
         // Start butonuna tıklanınca
         startBtn.addEventListener('click', function() {
             let username = usernameInput.value.trim() || 'Username';
             // URL oluştur
-            const url = `${window.location.origin}${window.location.pathname}?username=${encodeURIComponent(username)}`;
+            const url = `${window.location.origin}${window.location.pathname}?username=${encodeURIComponent(username)}&template=${encodeURIComponent(currentTemplate)}`;
             // URL parametresini güncelle (sayfa yenilemeden)
             window.history.pushState({}, '', url);
             urlOutput.value = url;
@@ -335,8 +398,12 @@
             // Statları sıfırla
             flame.style.display = 'none';
             flameLevelLabel.textContent = '';
+            // Konumu güncelle
+            const pos = getTemplateAssets(currentTemplate).position;
+            flame.style.top = pos.top;
+            flame.style.left = pos.left;
             // Alev animasyonunu başlat
-            startFlame(username);
+            startFlame(username, currentTemplate);
         });
 
         // Kopyala butonu
@@ -357,4 +424,3 @@
     </script>
 </body>
 </html>
-``` 
