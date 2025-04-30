@@ -219,11 +219,14 @@
             let targetLevel = 2;
             let lastLevelChange = Date.now();
             const levelChangeDelay = 2000; // ms
-            let msgPerSec = 0;
+            let msgPerSec60 = 0;
+            let msgPerSec180 = 0;
+            let count60 = 0;
+            let count180 = 0;
 
-            function updateFlameImage(level, msgPerSec) {
+            function updateFlameImage(level, msgPerSec60, msgPerSec180) {
                 flame.style.backgroundImage = `url('./flame/${level}.png')`;
-                flameLevelLabel.textContent = `Alev Seviyesi: ${level} | Mesaj/saniye: ${msgPerSec.toFixed(2)}`;
+                flameLevelLabel.textContent = `Alev Seviyesi: ${level} | 60sn: ${msgPerSec60.toFixed(2)}/sn | 180sn: ${msgPerSec180.toFixed(2)}/sn`;
             }
 
             function connectKickWebSocket() {
@@ -256,25 +259,44 @@
 
             function updateFlameLevelByActivity() {
                 const now = Date.now();
-                messageTimestamps = messageTimestamps.filter(ts => now - ts < 60000);
-                msgPerSec = messageTimestamps.length / 60;
-                if (msgPerSec <= 0.2) targetLevel = 1;
-                else if (msgPerSec <= 0.5) targetLevel = 2;
-                else if (msgPerSec <= 1) targetLevel = 3;
-                else if (msgPerSec <= 2) targetLevel = 4;
-                else targetLevel = 5;
+                // Son 180 ve 60 saniyelik mesajları filtrele
+                messageTimestamps = messageTimestamps.filter(ts => now - ts < 180000);
+                count60 = messageTimestamps.filter(ts => now - ts < 60000).length;
+                count180 = messageTimestamps.length;
+                msgPerSec60 = count60 / 60;
+                msgPerSec180 = count180 / 180;
+                // 180 saniyede hiç mesaj yoksa, alev seviyesi 2'de sabit kalsın
+                if (count180 === 0) {
+                    flameLevel = 2;
+                    targetLevel = 2;
+                    updateFlameImage(flameLevel, msgPerSec60, msgPerSec180);
+                    return;
+                }
+                // Kıyaslama: son 60sn ortalaması, 180sn ortalamasından anlamlı yüksekse seviye artar, düşükse azalır
+                if (msgPerSec60 > msgPerSec180 + 0.2) {
+                    targetLevel = Math.min(maxLevel, flameLevel + 1);
+                } else if (msgPerSec60 < msgPerSec180 - 0.2) {
+                    targetLevel = Math.max(minLevel, flameLevel - 1);
+                } else {
+                    // Standart seviyelendirme
+                    if (msgPerSec60 <= 0.2) targetLevel = 1;
+                    else if (msgPerSec60 <= 0.5) targetLevel = 2;
+                    else if (msgPerSec60 <= 1) targetLevel = 3;
+                    else if (msgPerSec60 <= 2) targetLevel = 4;
+                    else targetLevel = 5;
+                }
                 if (Date.now() - lastLevelChange > levelChangeDelay) {
                     if (flameLevel < targetLevel) flameLevel++;
                     else if (flameLevel > targetLevel) flameLevel--;
-                    updateFlameImage(flameLevel, msgPerSec);
+                    updateFlameImage(flameLevel, msgPerSec60, msgPerSec180);
                     lastLevelChange = Date.now();
                 } else {
-                    updateFlameImage(flameLevel, msgPerSec);
+                    updateFlameImage(flameLevel, msgPerSec60, msgPerSec180);
                 }
             }
 
             globalInterval = setInterval(updateFlameLevelByActivity, 1000);
-            updateFlameImage(flameLevel, msgPerSec);
+            updateFlameImage(flameLevel, msgPerSec60, msgPerSec180);
             connectKickWebSocket();
         }
 
@@ -335,3 +357,4 @@
     </script>
 </body>
 </html>
+``` 
