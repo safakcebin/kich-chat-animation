@@ -162,6 +162,10 @@
         </div>
     </div>
     <script>
+        // Global değişkenler (çakışmayı önlemek için)
+        let globalWs = null;
+        let globalInterval = null;
+
         // Yardımcı fonksiyon: URL parametresinden username al
         function getUsernameFromUrl() {
             const params = new URLSearchParams(window.location.search);
@@ -184,6 +188,16 @@
 
         // Alev animasyonu ve chat fonksiyonları
         async function startFlame(username) {
+            // Önce eski bağlantı ve interval'ı temizle
+            if (globalWs) {
+                try { globalWs.close(); } catch (e) {}
+                globalWs = null;
+            }
+            if (globalInterval) {
+                clearInterval(globalInterval);
+                globalInterval = null;
+            }
+
             const flame = document.getElementById('flame');
             const flameLevelLabel = document.getElementById('flameLevelLabel');
             flame.style.display = 'block';
@@ -214,6 +228,7 @@
 
             function connectKickWebSocket() {
                 ws = new WebSocket(KICK_WS_URL);
+                globalWs = ws; // global referans
                 ws.onopen = function() {
                     const subscribePayload = {
                         event: "pusher:subscribe",
@@ -232,7 +247,10 @@
                     } catch (e) {}
                 };
                 ws.onclose = function() {
-                    setTimeout(connectKickWebSocket, 3000);
+                    // Sadece aktif ws ise reconnect
+                    if (globalWs === ws) {
+                        setTimeout(connectKickWebSocket, 3000);
+                    }
                 };
             }
 
@@ -255,7 +273,7 @@
                 }
             }
 
-            setInterval(updateFlameLevelByActivity, 1000);
+            globalInterval = setInterval(updateFlameLevelByActivity, 1000);
             updateFlameImage(flameLevel, msgPerSec);
             connectKickWebSocket();
         }
@@ -288,8 +306,13 @@
             let username = usernameInput.value.trim() || 'Username';
             // URL oluştur
             const url = `${window.location.origin}${window.location.pathname}?username=${encodeURIComponent(username)}`;
+            // URL parametresini güncelle (sayfa yenilemeden)
+            window.history.pushState({}, '', url);
             urlOutput.value = url;
             urlRow.style.display = 'flex';
+            // Statları sıfırla
+            flame.style.display = 'none';
+            flameLevelLabel.textContent = '';
             // Alev animasyonunu başlat
             startFlame(username);
         });
