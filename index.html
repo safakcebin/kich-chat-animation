@@ -163,6 +163,20 @@
             </div>
         </div>
     </div>
+    <!-- Info Card: Purpose and Statistics -->
+    <div class="main-card" style="margin-top:24px; background:#23272f; min-width:320px; max-width:420px;">
+        <h3 style="color:#4f8cff; margin-top:0;">About This Project</h3>
+        <p style="color:#bfc7d5; font-size:1em; margin-bottom:10px;">This web application visualizes live chat activity from a Kick.com channel as a flame animation. The flame level increases or decreases based on the number of chat messages per second, providing a real-time indicator of chat engagement.</p>
+        <h4 style="color:#3bb273; margin-bottom:6px; margin-top:18px; font-size:1.08em;">How the Statistics Work</h4>
+        <ul style="color:#bfc7d5; font-size:0.98em; padding-left:18px; margin:0 0 8px 0;">
+            <li>Tracks the timestamps of incoming chat messages.</li>
+            <li>Calculates the average messages per second over the last 60 and 180 seconds.</li>
+            <li>If there are no messages in the last 180 seconds, the flame stays at level 2.</li>
+            <li>If recent activity increases or decreases, the flame level adjusts accordingly.</li>
+            <li>Otherwise, the flame level is set based on message rate thresholds.</li>
+        </ul>
+        <p style="color:#bfc7d5; font-size:0.97em; margin-top:8px;">Share the generated link as a browser source in your streaming software to display the animation live.</p>
+    </div>
     <script>
         // Global değişkenler (çakışmayı önlemek için)
         let globalWs = null;
@@ -424,3 +438,4 @@
     </script>
 </body>
 </html>
+``` 
